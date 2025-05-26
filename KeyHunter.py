@@ -10,7 +10,7 @@ class BurpExtender(IBurpExtender, IScannerCheck):
         self._callbacks = callbacks
         self._callbacks.setExtensionName("KeyHunter")
         self._callbacks.registerScannerCheck(self)
-        print("[+] KeyHunter Loaded")
+        print("[+] KeyHunter by @sudosuraj Loaded")
         return
 
     def consolidateDuplicateIssues(self, existingIssue, newIssue):
@@ -23,12 +23,10 @@ class BurpExtender(IBurpExtender, IScannerCheck):
         scan_issues = []
         self._CustomScans = CustomScans(baseRequestResponse, self._callbacks)
 
-        # Skip binary MIME types
         content_type = self._CustomScans.getContentType()
         if any(binary in content_type for binary in ["image", "font", "video", "audio"]):
             return None
 
-        # Extended regex patterns with contextual validation
         extra_patterns = {
             "Generic Credentials": r"(?i)pass(word|wd|phrase)|secret|token|api[-_]?key|auth|credential|private[-_]key",
             "JWT": r"(?<![\w-])eyJ[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}(?![\w-])",
@@ -50,7 +48,6 @@ class BurpExtender(IBurpExtender, IScannerCheck):
             matches = self._CustomScans.findRegExValidated(pattern, name)
             scan_issues.extend(matches)
 
-        # Keyword-based pattern detection
         keywords = [
             "access_key", "access_token", "accessKey", "accessToken", "account_sid", "accountsid",
             "admin_pass", "admin_user", "api_key", "api_secret", "apikey", "app_key", "app_secret",
