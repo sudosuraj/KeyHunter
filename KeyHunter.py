@@ -1,15 +1,19 @@
-from burp import IBurpExtender, IScannerCheck, IScanIssue
+from burp import IBurpExtender, IScannerCheck, IScanIssue, IContextMenuFactory
+from javax.swing import JMenuItem
+from java.awt.event import ActionListener
 from array import array
 import re
 import base64
 import json
 
-class BurpExtender(IBurpExtender, IScannerCheck):
-
+class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
+    
     def registerExtenderCallbacks(self, callbacks):
         self._callbacks = callbacks
+        self._helpers = callbacks.getHelpers()
         self._callbacks.setExtensionName("KeyHunter")
         self._callbacks.registerScannerCheck(self)
+        self._callbacks.registerContextMenuFactory(self) 
         print("[+] KeyHunter Loaded")
         return
 
@@ -20,23 +24,44 @@ class BurpExtender(IBurpExtender, IScannerCheck):
             return 0
 
     def doPassiveScan(self, baseRequestResponse):
-        scan_issues = []
-        self._CustomScans = CustomScans(baseRequestResponse, self._callbacks)
+        return self._scan(baseRequestResponse)
 
-        content_type = self._CustomScans.getContentType()
+    def createMenuItems(self, invocation):
+        self.context = invocation
+        menu_list = []
+        menu_item = JMenuItem("Send to KeyHunter", actionPerformed=self.scanSelected)
+        menu_list.append(menu_item)
+        return menu_list
+
+    def scanSelected(self, event):
+        selected_messages = self.context.getSelectedMessages()
+        if not selected_messages:
+            return
+            
+        for message in selected_messages:
+            issues = self._scan(message)
+            if issues:
+                for issue in issues:
+                    self._callbacks.addScanIssue(issue)
+
+    def _scan(self, requestResponse):
+        scan_issues = []
+        custom_scans = CustomScans(requestResponse, self._callbacks)
+
+        content_type = custom_scans.getContentType()
         if any(binary in content_type for binary in ["image", "font", "video", "audio"]):
             return None
 
         extra_patterns = {
             "Generic Credentials": r"(?i)pass(word|wd|phrase)|secretToken|secret|token|api[-_]?key|auth|credential|private[-_]key",
-            "JWT": r"(?<![\w-])eyJ[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}(?![\w-])",
-            "Private IPs": r"(10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(1[6-9]|2\\d|3[0-1])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})",
+            "JWT": r"(?<![\w-])eyJ[a-zA-Z0-9_-]{5,}\.[a-zA-Z0-9_-]{5,}\.[a-zA-Z0-9_-]{5,}(?![\w-])",
+            "Private IPs": r"(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})",
             "AWS Access Keys": r"(AKIA|ASIA)[A-Z0-9]{16}",
-            "Email Addresses": r"([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\\.[a-zA-Z0-9_-]+)",
+            "Email Addresses": r"([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)",
             "URL with Secrets": r"https?:\/\/[^:/]+:[^@/]+@",
             "Azure Keys": r"(AccountKey|sig)=[a-z0-9+/=]{48}",
             "Google API Key": r"AIza[0-9A-Za-z-_]{35}",
-            "Slack Token": r"xoxb-\\d{12}-\\d{12}-[a-zA-Z0-9]{24}",
+            "Slack Token": r"xoxb-\d{12}-\d{12}-[a-zA-Z0-9]{24}",
             "Heroku API Key": r"[hH][eE][rR][oO][kK][uU].{0,30}[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
             "Postgres DB Connection": r"postgres(ql)?:\/\/[^:@]+:[^@]+@",
             "Private Key Block": r"-----BEGIN (RSA|EC) PRIVATE KEY-----",
@@ -45,7 +70,7 @@ class BurpExtender(IBurpExtender, IScannerCheck):
         }
 
         for name, pattern in extra_patterns.items():
-            matches = self._CustomScans.findRegExValidated(pattern, name)
+            matches = custom_scans.findRegExValidated(pattern, name)
             scan_issues.extend(matches)
 
         keywords = [
@@ -131,12 +156,12 @@ class BurpExtender(IBurpExtender, IScannerCheck):
             "neo4j_uri", "neo4j_password", "rabbitmq_url", "rabbitmq_username", "rabbitmq_password","celery_broker_url", "broker_url", "session_token", "auth_header", "authz_header",
             "cookie_secret", "cookie_encryption_key", "flash_secret", "csrf_secret","GOOGLE_APPLICATION_CREDENTIALS", "AWS_DEFAULT_PROFILE", "AZURE_CLIENT_CERT",
             "GCP_METADATA_TOKEN", "METADATA_FLAVOR", "x_ms_msi_auth", "api_endpoint", "api_base_url","admin_email", "recovery_email", "support_email", "webhook_url", "callback_url",
-            "login_token", "unlock_token", "reset_password_token", "confirmation_token"
+            "login_token", "unlock_token", "reset_password_token", "confirmation_token","otpauth"
         ]
 
         for key in keywords:
             regex = r"(?i)\b" + re.escape(key) + r"\b['\"]?\s*(=|:)\s*['\"]?([^\s\"'&<]+)"
-            matches = self._CustomScans.findRegExValidated(regex, key)
+            matches = custom_scans.findRegExValidated(regex, key)
             scan_issues.extend(matches)
 
         return scan_issues if scan_issues else None
@@ -186,6 +211,9 @@ class CustomScans:
 
             url = self._helpers.analyzeRequest(self._requestResponse).getUrl()
             start = self._helpers.indexOf(response, value, True, 0, responseLength)
+            if start == -1:
+                continue
+                
             offset[0] = start
             offset[1] = start + len(value)
             offsets = [offset]
@@ -197,7 +225,7 @@ class CustomScans:
                 self._requestResponse.getHttpService(),
                 url,
                 [self._callbacks.applyMarkers(self._requestResponse, None, offsets)],
-                "KeyHunter Detected[{}]".format(key),
+                "KeyHunter Detected [{}]".format(key),
                 severity,
                 detail
             ))
