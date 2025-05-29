@@ -10,7 +10,7 @@ class BurpExtender(IBurpExtender, IScannerCheck):
         self._callbacks = callbacks
         self._callbacks.setExtensionName("KeyHunter")
         self._callbacks.registerScannerCheck(self)
-        print("[+] KeyHunter by @sudosuraj Loaded")
+        print("[+] KeyHunter Loaded")
         return
 
     def consolidateDuplicateIssues(self, existingIssue, newIssue):
@@ -28,7 +28,7 @@ class BurpExtender(IBurpExtender, IScannerCheck):
             return None
 
         extra_patterns = {
-            "Generic Credentials": r"(?i)pass(word|wd|phrase)|secret|token|api[-_]?key|auth|credential|private[-_]key",
+            "Generic Credentials": r"(?i)pass(word|wd|phrase)|secretToken|secret|token|api[-_]?key|auth|credential|private[-_]key",
             "JWT": r"(?<![\w-])eyJ[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}(?![\w-])",
             "Private IPs": r"(10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(1[6-9]|2\\d|3[0-1])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3})",
             "AWS Access Keys": r"(AKIA|ASIA)[A-Z0-9]{16}",
@@ -49,7 +49,7 @@ class BurpExtender(IBurpExtender, IScannerCheck):
             scan_issues.extend(matches)
 
         keywords = [
-            "access_key", "access_token", "accessKey", "accessToken", "account_sid", "accountsid",
+            "access_key", "secretToken", "access_token", "accessKey", "accessToken", "account_sid", "accountsid",
             "admin_pass", "admin_user", "api_key", "api_secret", "apikey", "app_key", "app_secret",
             "app_url", "application_id", "aws_secret_token", "authsecret", "aws_access",
             "aws_access_key_id", "aws_bucket", "aws_config", "aws_default_region", "aws_key",
@@ -97,7 +97,41 @@ class BurpExtender(IBurpExtender, IScannerCheck):
             "twitter_consumer_key", "twitter_consumer_secret", "twitter_key", "twitter_secret",
             "twitter_token", "twitterKey", "twitterSecret", "wordpress_password", "zen_key", "zen_tkn",
             "zen_token", "zendesk_api_token", "zendesk_key", "zendesk_token", "zendesk_url",
-            "zendesk_username", "zendesk_password"
+            "zendesk_username", "zendesk_password", "auth_key", "auth_secret", "auth_token", "bearer_token", "client_key", "credential", 
+            "crypto_key", "decryption_key", "enc_key", "enc_secret", "enc_token", "hmac_key", 
+            "jwt_secret", "master_key", "passphrase", "privatekey", "public_key", "salt", 
+            "secure_token", "security_token", "shared_secret", "signature", "signing_key", 
+            "x_api_key", "x_secret_key", "azure_client_id", "azure_client_secret", "azure_tenant_id", "azure_subscription_id",
+            "azure_storage_account_key", "azure_storage_connection_string", "azure_cosmos_key",
+            "gcp_project_id", "gcp_client_email", "gcp_private_key", "gcp_client_id",
+            "gcp_api_key", "gcp_refresh_token", "gcp_access_token", "gcp_secret", "google_cloud_keyfile", "google_service_account", "google_private_key_id",
+            "digitalocean_token", "do_api_key", "do_client_id", "do_client_secret", "ibm_cloud_api_key", "ibm_cloud_iam_apikey", "ibm_cloud_iam_token",
+            "oracle_cloud_api_key", "oci_key_fingerprint", "oci_user_ocid", "oci_tenancy_ocid",
+            "kubernetes_token", "kubeconfig_token", "kubeapi_token", "dockerhub_username", "dockerhub_password", "dockerhub_token",
+            "docker_registry_user", "docker_registry_password","circleci_token", "circleci_api_key", "travis_token",
+            "gitlab_token", "gitlab_private_token", "gitlab_ci_token", "bitbucket_username", "bitbucket_app_password", "bitbucket_oauth_token",
+            "heroku_api_token", "heroku_git_token", "npm_auth_token", "npm_token","yarn_registry_key","slack_oauth_token", "slack_bot_token", "slack_signing_secret",
+            "jira_api_token", "jira_user_email", "jira_api_key","newrelic_api_key", "newrelic_license_key",
+            "rollbar_access_token", "rollbar_post_server_item","honeybadger_api_key", "honeybadger_project_id",
+            "pagerduty_integration_key", "pagerduty_api_token","datadog_api_key", "datadog_app_key",
+            "sumologic_access_id", "sumologic_access_key","splunk_hec_token", "splunk_username", "splunk_password",
+            "algolia_api_key", "algolia_app_id", "algolia_search_key","sendgrid_api_key", "mailchimp_api_key", "mailchimp_server_prefix",
+            "twine_username", "twine_password","pypi_token", "docker_token","oauth_client_id", "oauth_client_secret", "oauth_refresh_token",
+            "ssm_parameter", "vault_token", "vault_path", "vault_key","ansible_vault_password", "ansible_ssh_pass",
+            "openssl_private_key", "openssl_public_key", "ssl_certificate","pem_key", "pfx_password",
+            "telegram_bot_token", "discord_webhook_url", "mastodon_access_token","spotify_client_id", "spotify_client_secret",
+            "stripe_client_id", "paypal_client_id","cloudflare_api_token", "cloudflare_email", "cloudflare_api_key",
+            "auth0_client_id", "auth0_client_secret", "auth0_domain","okta_client_id", "okta_client_secret", "okta_org_url",
+            "saml_certificate", "saml_certificate_key","twilio_api_version", "twilio_messaging_service_sid",
+            "aws_session_token", "aws_profile", "aws_creds_file","azure_key_vault_secret", "gcp_secret_manager_secret",
+            "onepassword_token", "bitwarden_client_id", "bitwarden_client_secret", ".env", ".env.local", ".env.development", ".env.production", ".env.test",
+            "credentials.yml", "credentials.yaml", "config.yml", "config.yaml", "settings.py", "application.properties", "application.yml", "secrets.json", "secrets.yml", "manifest.json",
+            "docker_config_json", "docker_config", "jest_config", "connection_string","redis_url", "memcached_password", "smtp_username", "smtp_password", "smtp_host",
+            "imap_username", "imap_password", "ftp_username", "ftp_password","sql_connection_string", "mongo_uri", "mongodb_uri", "mongodb_username", "mongodb_password",
+            "neo4j_uri", "neo4j_password", "rabbitmq_url", "rabbitmq_username", "rabbitmq_password","celery_broker_url", "broker_url", "session_token", "auth_header", "authz_header",
+            "cookie_secret", "cookie_encryption_key", "flash_secret", "csrf_secret","GOOGLE_APPLICATION_CREDENTIALS", "AWS_DEFAULT_PROFILE", "AZURE_CLIENT_CERT",
+            "GCP_METADATA_TOKEN", "METADATA_FLAVOR", "x_ms_msi_auth", "api_endpoint", "api_base_url","admin_email", "recovery_email", "support_email", "webhook_url", "callback_url",
+            "login_token", "unlock_token", "reset_password_token", "confirmation_token"
         ]
 
         for key in keywords:
